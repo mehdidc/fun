@@ -1,4 +1,6 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*
+import matplotlib
+matplotlib.use('agg')  # NOQA
 import numpy as np
 from collections import namedtuple
 from scipy.special import binom
@@ -6,43 +8,49 @@ from scipy.special import binom
 Point = namedtuple('Point', ['x', 'y'])
 
 
-def sample(rng=np.random):
-    nbparts = sample_nbparts()
-    parts = []
-    for i in range(nbparts):
-        part = sample_part(parts, rng=rng)
-        parts.append(part)
-    return parts
+class Sampler(object):
 
+    def __init__(self, attach_parts=True, nbparts=(1, 5), nbpoints=(1, 5), random_state=42):
+        self.nbparts = nbparts
+        self.nbpoints = nbpoints
+        self.attach_parts = attach_parts
+        self.rng = np.random.RandomState(random_state)
 
-def sample_nbparts(rng=np.random):
-    return rng.randint(1, 5)
+    def sample(self):
+        nbparts = self.sample_nbparts()
+        parts = []
+        for i in range(nbparts):
+            part = self.sample_part(parts)
+            parts.append(part)
+        return parts
 
+    def sample_nbparts(self):
+        low, high = self.nbparts
+        return self.rng.randint(low, high)
 
-def sample_part(parts, rng=np.random):
-    if len(parts) == 0:
-        starting_point = sample_point([], rng=rng)
-    else:
-        k = rng.randint(0, len(parts))
-        starting_point = parts[k][-1]
+    def sample_part(self, parts):
+        if len(parts) == 0 or self.attach_parts is False:
+            starting_point = self.sample_point([])
+        else:
+            k = self.rng.randint(0, len(parts))
+            starting_point = parts[k][-1]
 
-    nb_points = sample_nb_points()
+        nb_points = self.sample_nb_points()
 
-    point = starting_point
-    points = [point]
-    for i in range(nb_points - 1):
-        point = sample_point(points, rng=rng)
-        points.append(point)
-    return points
+        point = starting_point
+        points = [point]
+        for i in range(nb_points - 1):
+            point = self.sample_point(points)
+            points.append(point)
+        return points
 
+    def sample_nb_points(self):
+        low, high = self.nbpoints
+        return self.rng.randint(low, high)
 
-def sample_nb_points(rng=np.random):
-    return rng.randint(1, 5)
-
-
-def sample_point(points, rng=np.random):
-    x, y = rng.uniform(size=2)
-    return Point(x=x, y=y)
+    def sample_point(self, points):
+        x, y = self.rng.uniform(size=2)
+        return Point(x=x, y=y)
 
 
 def render(obj, **kwargs):
@@ -152,7 +160,7 @@ def optimize(image):
         for k, v in params.items():
             x[int(k)] = v
         return x
-    
+
     def f(x):
         obj = delinearize(x, max_parts=max_parts, max_subparts=max_subparts)
         curve = render(obj)
@@ -174,7 +182,7 @@ def optimize(image):
     return obj
 
 
-def genetic_optimize(image, rng=np.random, nb_iter=10):
+def genetic_optimize(image, rng=np.random, nb_iter=10, **kw):
 
     size = 100
     nb = 10
@@ -183,15 +191,15 @@ def genetic_optimize(image, rng=np.random, nb_iter=10):
     mutation_proba = [
         ('random', 0.1),
         ('add_part', 0.1),
-        ('remove_part', 0.1),
-        ('add_point', 0.2),
-        ('remove_point', 0.2)
+        ('remove_part', 0.01),
+        ('add_point', 0.1),
+        ('remove_point', 0.01)
     ]
 
     population = [sample(rng=rng) for i in range(size)]
 
     def f(x):
-        return ((to_img(render(x)) - image) ** 2).sum()
+        return ((to_img(render(x), **kw) - image) ** 2).sum()
 
     for i in range(nb_iter):
         print(np.min(map(f, population)))
@@ -257,21 +265,18 @@ def to_img(curve, w=1, h=1, dpi=28):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from lasagnekit.datasets.mnist import MNIST
-    data = MNIST()
-    data.load()
-    idx = 1
-    w, h = data.img_dim
-    img = data.X[idx].reshape((w, h))
-
-    #o = sample()
-    #img = to_img(render(o))
-    #print(img)
-
-    img_reconstructed = to_img(render(genetic_optimize(img)))
-    fig = plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.imshow(img, cmap="gray")
-    plt.subplot(1, 2, 2)
-    plt.imshow(img_reconstructed, cmap="gray")
-    plt.show()
+    nbl = 10
+    nbc = 10
+    w = 64
+    h = 64
+    canvas = np.empty((w * nbl, h * nbc))
+    sampler = Sampler(attach_parts=True, nbpoints=(2, 5), nbparts=(1, 5))
+    for l in range(nbl):
+        for c in range(nbc):
+            o = sampler.sample()
+            img = to_img(render(o), dpi=w)
+            x = l * w
+            y = c * h
+            canvas[x:x+w, y:y+h] = img
+    plt.imshow(canvas, cmap="gray", interpolation='none')
+    plt.savefig('out.png')
