@@ -263,15 +263,16 @@ def to_img(curve, w=1, h=1, dpi=28):
         X = np.zeros((w*dpi, h*dpi))
         return X
 
-def to_img2(curve, w=1, h=1):
+def to_img2(curve, w=1, h=1, thickness=2):
     img = np.zeros((w, h))
     x_max = curve[:, 1].max()
     x_min = curve[:, 1].min()
     y_max = curve[:, 0].max()
     y_min = curve[:, 0].min()
     for c in curve:
-        y, x = c
-        img[int(h * (y - y_min) / y_max), int(w * (x - x_min) / x_max)] = 1
+        y, x  = c
+        y, x = int(h * (y - y_min) / y_max), int(w * (x - x_min) / x_max)
+        img[y-thickness:y+thickness, x-thickness:x+thickness] = 1
     return img
 
 if __name__ == "__main__":
@@ -285,7 +286,7 @@ if __name__ == "__main__":
     for l in range(nbl):
         for c in range(nbc):
             o = sampler.sample()
-            img = to_img(render(o), dpi=w)
+            img = to_img2(render(o, num=500, sx=64, sy=64), w=w, h=h)
             x = l * w
             y = c * h
             canvas[x:x+w, y:y+h] = img
