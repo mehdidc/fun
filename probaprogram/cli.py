@@ -145,7 +145,6 @@ def train():
         data = discretize.transform(data)
         data = vectorize.transform(data)
 
-
         print(images.shape)
 
         batch_losses = []

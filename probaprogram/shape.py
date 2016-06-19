@@ -265,9 +265,13 @@ def to_img(curve, w=1, h=1, dpi=28):
 
 def to_img2(curve, w=1, h=1):
     img = np.zeros((w, h))
+    x_max = curve[:, 1].max()
+    x_min = curve[:, 1].min()
+    y_max = curve[:, 0].max()
+    y_min = curve[:, 0].min()
     for c in curve:
         y, x = c
-        img[int(y*h), int(x*w)] = 1
+        img[int(h * (y - y_min) / y_max), int(w * (x - x_min) / x_max)] = 1
     return img
 
 if __name__ == "__main__":
