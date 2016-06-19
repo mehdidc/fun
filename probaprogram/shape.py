@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*
 import matplotlib
 matplotlib.use('agg')  # NOQA
+import matplotlib.pyplot as plt
 import numpy as np
 from collections import namedtuple
 from scipy.special import binom
@@ -62,7 +63,6 @@ def render(obj, **kwargs):
         return np.concatenate(curves, axis=0)
     else:
         return []
-
 
 # Source : https://gist.github.com/Juanlu001/7284462
 def Bernstein(n, k):
@@ -262,6 +262,13 @@ def to_img(curve, w=1, h=1, dpi=28):
     else:
         X = np.zeros((w*dpi, h*dpi))
         return X
+
+def to_img2(curve, w=1, h=1):
+    img = np.zeros((w, h))
+    for c in curve:
+        y, x = c
+        img[int(y*h), int(x*w)] = 1
+    return img
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
