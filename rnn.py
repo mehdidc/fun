@@ -11,12 +11,12 @@ def softmax(x):
     return x_ / x_.sum(axis=1)[:, np.newaxis]
 
 def forward(Wxh, Whh, bh, X):
-    
+
     nb_timesteps = X.shape[1]
-    
+
     H = np.zeros((X.shape[0], X.shape[1], Whh.shape[0]))
     h_tm1 = np.zeros((H.shape[0], H.shape[2]))
-    
+
     for t in range(nb_timesteps):
         x_t = X[:, t, :]
         h_t = tanh(np.dot(x_t, Wxh.T) + np.dot(h_tm1, Whh.T) + bh)
@@ -28,7 +28,7 @@ def backward(Wxh, Whh, bh, X, H, d_H):
 
     nb_timesteps = X.shape[1]
     d_h_tp1 = np.zeros((H.shape[0], H.shape[2]))
-    
+
     d_Wxh = np.zeros_like(Wxh)
     d_Whh = np.zeros_like(Whh)
     d_bh = np.zeros_like(bh)
@@ -40,9 +40,9 @@ def backward(Wxh, Whh, bh, X, H, d_H):
         else:
             h_tm1 = np.zeros(h_tm1.shape)
         x_t = X[:, t, :]
-        
+
         d_h_t = d_H[:, t, :] * (1 - h_t * h_t) + dhnext.T * (1 - h_t * h_t)
-        
+
         d_Wxh += np.dot(d_h_t.T, x_t)
         d_Whh += np.dot(d_h_t.T, h_tm1)
         d_bh += d_h_t.sum(axis=0)
@@ -59,7 +59,7 @@ def forward_softmax(W, b, X):
         x_t = X[:, t, :]
         p_t = (np.dot(x_t, W.T) + b)
         P[:, t, :] = p_t
-        y_t = softmax(p_t) 
+        y_t = softmax(p_t)
         Y[:, t, :] = y_t
     return Y, P
 
@@ -72,7 +72,7 @@ def backward_softmax(W, b, X, P, Y, Y_pred):
     for t in reversed(range(nb_timesteps)):
         y_t = Y[:, t]
         x_t = X[:, t, :]
-        
+
         d_h_t = -Y_pred[:, t, :].copy()
         d_h_t[np.arange(d_h_t.shape[0]), y_t] += 1
         d_h_t /= -float(Y_pred.shape[0])
@@ -97,7 +97,7 @@ def build_data(filename):
     fd = open(filename, "r")
     data = fd.read()
     fd.close()
-    
+
     chars = (list(set(c for c in data)))
     char_to_ix = { ch:i for i,ch in enumerate(chars) }
     ix_to_char = { i:ch for i,ch in enumerate(chars) }
@@ -121,7 +121,7 @@ def sample(Wxh, Whh, bh, vocab_size, W, b, h, seed_ix, n, rng=np.random):
 
 if __name__ == "__main__":
     import sys
-    data, char_to_ix, ix_to_char = build_data("pomodoro.csv")
+    data, char_to_ix, ix_to_char = build_data("rnn.py")
 
     def rnd_func(rng, shape):
         #if np.all(shape == shape[0]):
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         return rng.randn(*shape)*0.01
     rng = np.random
     rng.seed(1)
-     
+
     nb_features = len(char_to_ix)
     nb_outputs = nb_features
     nb_hidden = 10
@@ -149,7 +149,7 @@ if __name__ == "__main__":
             for i in range(param_.shape[0]):
                 initial = param_[i]
                 param_[i] = initial - epsilon
-                
+
                 H = forward(Wxh, Whh, bh, X)
                 Y_pred, P = forward_softmax(W, b, H)
                 L_before = (loss(Y_pred, y))
@@ -185,9 +185,9 @@ if __name__ == "__main__":
                 X[i, t, t_inp] = 1
             y[i] = targets
             p += seq_length
-        
+
         nb_timesteps = len(inputs)
- 
+
         # forward
         H = forward(Wxh, Whh, bh, X)
         Y_pred, P = forward_softmax(W, b, H)
@@ -196,17 +196,17 @@ if __name__ == "__main__":
         d_H, d_W, d_b = backward_softmax(W, b, H, P, y, Y_pred)
         updates.append((W, d_W))
         updates.append((b, d_b))
-        
+
         params, d_params = backward(Wxh, Whh, bh,
                                     X, H, d_H)
         # update
         for param, d_param in reversed(zip(params, d_params)):
             updates.append((param, d_param))
-        gradient_check(updates, Wxh, Whh, bh, W, b, X, y)
+        #gradient_check(updates, Wxh, Whh, bh, W, b, X, y)
         for i, (param, d_param) in enumerate(updates):
             d_param = np.clip(d_param, -1, 1) # clip to mitigate exploding gradients
             d = learning_rate * d_param
-            param -= d 
+            param -= d
 
         L = (loss(Y_pred, y))
         smooth_loss = smooth_loss * 0.999 + L * 0.001
@@ -226,4 +226,3 @@ if __name__ == "__main__":
             print("".join([ix_to_char[d] for d in s]))
             print("\n")
         epoch += 1
-        break
